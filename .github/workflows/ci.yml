@@ -42,3 +42,92 @@ jobs:
           name: ${{ env.JAR_NAME }}
       - name: Deploy
         run: ls -lh
+
+  # Updates item status to "Test" when merge request is deployed and merged
+  update-item-status:
+    if: github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'Merge pull request')
+    runs-on: ubuntu-latest
+    needs: deploy
+    env:
+      GITHUB_TOKEN: ${{ secrets.TOKEN }}
+      USER: warezeada
+    steps:
+      - name: Get project data
+        env:
+          PROJECT_NUMBER: 1
+        run: |
+          gh api graphql -f query='
+            query($user: String!, $number: Int!) {
+              user(login: $user) {
+                projectV2(number: $number) {
+                  id
+                  fields(first:20) {
+                    nodes {
+                      ... on ProjectV2SingleSelectField {
+                        id
+                        name
+                        options {
+                          id
+                          name
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }' -f user=$USER -F number=$PROJECT_NUMBER > project_data.json
+
+          echo 'PROJECT_ID='$(jq '.data.user.projectV2.id' project_data.json) >> $GITHUB_ENV
+          echo 'STATUS_FIELD_ID='$(jq '.data.user.projectV2.fields.nodes[] | select(.name== "Status") | .id' project_data.json) >> $GITHUB_ENV
+          echo 'TODO_OPTION_ID='$(jq '.data.user.projectV2.fields.nodes[] | select(.name== "Status") | .options[] | select(.name=="Test") |.id' project_data.json) >> $GITHUB_ENV
+
+      - name: Get number of the issue
+        env:
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+        run: |
+          itemNumber=$(echo "$COMMIT_MESSAGE" | grep -Eo '/#[0-9]+' | grep -Eo '[0-9]+')
+          echo 'ISSUE_NUMBER='$itemNumber >> $GITHUB_ENV
+
+      - name: Get ID of the item
+        run: |
+          itemId=$(gh api graphql -f query='
+            query($user: String!, $number: Int!) {
+              repository(owner: $user, name:"thesis-project-backend") {
+                issue(number: $number) {
+                  projectItems(first: 1) {
+                    nodes {
+                      id
+                    }
+                  }
+                }
+              }
+            }' -f user=$USER -F number=$ISSUE_NUMBER --jq '.data.repository.issue.projectItems.nodes.[0].id')
+          echo 'ITEM_ID='$itemId
+          echo 'ITEM_ID='$itemId >> $GITHUB_ENV
+
+      - name: Set status field to "Test"
+        run: |
+          gh api graphql -f query='
+            mutation (
+              $project: ID!
+              $item: ID!
+              $status_field: ID!
+              $status_value: String!
+            ) {
+              set_status: updateProjectV2ItemFieldValue(input: {
+                projectId: $project
+                itemId: $item
+                fieldId: $status_field
+                value: {
+                  singleSelectOptionId: $status_value
+                  }
+              }) {
+                projectV2Item {
+                  id
+                }
+              }
+            }' -f project=$PROJECT_ID -f item=$ITEM_ID -f status_field=$STATUS_FIELD_ID -f status_value=${{ env.TODO_OPTION_ID }} -f date_field=$DATE_FIELD_ID -f date_value=$DATE --silent
+
+
+
+
