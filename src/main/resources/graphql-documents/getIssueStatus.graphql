@@ -1,0 +1,11 @@
+query getIssueStatus($issueId: ID!) {
+    node(id: $issueId) {
+        ... on ProjectV2Item {
+            fieldValueByName(name: "Status") {
+                ... on ProjectV2ItemFieldSingleSelectValue {
+                    name
+                }
+            }
+        }
+    }
+}
