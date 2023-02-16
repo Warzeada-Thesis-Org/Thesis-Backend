@@ -6,8 +6,12 @@ Server listens to issue update POST requests sent via a webhook from GitHub. In 
 of an issue being moved to the "In Progress" status column, the application sends a
 GraphQL request to assign the user who did the move to the issue.
 
-# Requirements
+## Requirements
 - Java JDK 17
 
-# Running the server
-run `./gradlew bootRun` on Unix-like OS or `gradlew.bat bootRun` in Windows
+## Running the server
+Run `./gradlew bootRun` on Unix-like OS or `gradlew.bat bootRun` in Windows.
+
+For testing purposes, `ngrok` tool can be used to create a public URL, that accepts 
+requests from webhook and sends it localhost where this application is running.
+Example `ngrok http 8080`

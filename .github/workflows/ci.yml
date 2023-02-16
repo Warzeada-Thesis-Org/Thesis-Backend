@@ -30,13 +30,13 @@ jobs:
           path: build/libs/thesis-*-SNAPSHOT.jar
           retention-days: 1
 
-  # Dummy deployment job
+  # Simulated deployment job
   deploy:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     needs: build
     steps:
-      - name: Download the jar file
+      - name: Download the built jar file
         uses: actions/download-artifact@v3
         with:
           name: ${{ env.JAR_NAME }}
@@ -79,7 +79,7 @@ jobs:
 
           echo 'PROJECT_ID='$(jq '.data.user.projectV2.id' project_data.json) >> $GITHUB_ENV
           echo 'STATUS_FIELD_ID='$(jq '.data.user.projectV2.fields.nodes[] | select(.name== "Status") | .id' project_data.json) >> $GITHUB_ENV
-          echo 'TODO_OPTION_ID='$(jq '.data.user.projectV2.fields.nodes[] | select(.name== "Status") | .options[] | select(.name=="Test") |.id' project_data.json) >> $GITHUB_ENV
+          echo 'TEST_OPTION_ID='$(jq '.data.user.projectV2.fields.nodes[] | select(.name== "Status") | .options[] | select(.name=="Test") |.id' project_data.json) >> $GITHUB_ENV
 
       - name: Get number of the issue
         env:
@@ -126,8 +126,4 @@ jobs:
                   id
                 }
               }
-            }' -f project=$PROJECT_ID -f item=$ITEM_ID -f status_field=$STATUS_FIELD_ID -f status_value=${{ env.TODO_OPTION_ID }} -f date_field=$DATE_FIELD_ID -f date_value=$DATE --silent
-
-
-
-
+            }' -f project=$PROJECT_ID -f item=$ITEM_ID -f status_field=$STATUS_FIELD_ID -f status_value=${{ env.TEST_OPTION_ID }} -f date_field=$DATE_FIELD_ID -f date_value=$DATE --silent
